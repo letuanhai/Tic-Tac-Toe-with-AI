@@ -6,11 +6,23 @@ def find_position(coordinate):
 
 
 class Board:
+    # A list of possible winning cases
+    winning_cases = (
+        (0, 1, 2),
+        (0, 3, 6),
+        (0, 4, 8),
+        (2, 4, 6),
+        (2, 5, 8),
+        (6, 7, 8),
+        (1, 4, 7),
+        (3, 4, 5),
+    )
+
     def __init__(self, player_x, player_o):
-        self.current_pos = "_" * 9
+        self.current_pos = ["_"] * 9
         self.current_player = "X"
-        self.player_x = self.user_move if player_x == "user" else self.auto_move
-        self.player_o = self.user_move if player_o == "user" else self.auto_move
+        self.player_x = player_x
+        self.player_o = player_o
         self.print_board()
 
     def print_board(self):
@@ -21,28 +33,17 @@ class Board:
         print("---------")
 
     def winning_pos(self):
-        cells = [
-            self.current_pos[0] + self.current_pos[1] + self.current_pos[2],
-            self.current_pos[0] + self.current_pos[3] + self.current_pos[6],
-            self.current_pos[0] + self.current_pos[4] + self.current_pos[8],
-            self.current_pos[2] + self.current_pos[4] + self.current_pos[6],
-            self.current_pos[2] + self.current_pos[4] + self.current_pos[6],
-            self.current_pos[2] + self.current_pos[5] + self.current_pos[8],
-            self.current_pos[6] + self.current_pos[7] + self.current_pos[8],
-            self.current_pos[1] + self.current_pos[4] + self.current_pos[7],
-            self.current_pos[3] + self.current_pos[4] + self.current_pos[5],
-        ]
-        return cells
+        cases = dict()
+        for case in Board.winning_cases:
+            positions = "".join(self.current_pos[i] for i in case)
+            cases[positions] = case
+        return cases
 
     def game_result(self):
         """If the game is finished, return the result, else return Game not finished"""
 
-        # Make an array of possible winning positions
         winning_pos = self.winning_pos()
-
         empty_cell = "_" in self.current_pos
-        # count_x = self.current_board.count("X")
-        # count_o = self.current_board.count("O")
 
         if "XXX" in winning_pos and "OOO" in winning_pos:
             # or abs(count_x - count_o) > 1:
@@ -74,19 +75,45 @@ class Board:
     def random_move(self):
         empty_cells = [i for i, cell in enumerate(self.current_pos) if cell == "_"]
         move = random.choice(empty_cells)
-        cells = list(self.current_pos)
-        cells[move] = self.current_player
-        self.current_pos = "".join(cells)
-        self.print_board()
+        self.current_pos[move] = self.current_player
 
     def winning_move(self):
         winning_pos = self.winning_pos()
-        possible_win = [s.replace('X', self.current_player) for s in ['XX_','_XX','X_X']]
-        pass
+        possible_win = [
+            s.replace("A", self.current_player) for s in ["AA_", "_AA", "A_A"]
+        ]
+        for case in possible_win:
+            if case in winning_pos:
+                positions = winning_pos[case]
+                move = positions[case.index("_")]
+                self.current_pos[move] = self.current_player
+                return True
+        return False
 
-    def auto_move(self):
-        print('Making move level "easy"')
-        self.random_move()
+    def blocking_move(self):
+        winning_pos = self.winning_pos()
+        opponent = "X" if self.current_player == "O" else "X"
+        possible_win = [s.replace("A", opponent) for s in ["AA_", "_AA", "A_A"]]
+        for case in possible_win:
+            if case in winning_pos:
+                positions = winning_pos[case]
+                move = positions[case.index("_")]
+                self.current_pos[move] = self.current_player
+                return True
+        return False
+
+    def auto_move(self, difficulty):
+        level = difficulty.strip().lower()
+        if level == "easy":
+            print('Making move level "easy"')
+            self.random_move()
+        elif level == "medium":
+            print('Making move level "medium"')
+            if not self.winning_move():
+                if not self.blocking_move():
+                    self.random_move()
+
+        self.print_board()
 
     def user_move(self):
         while True:
@@ -94,16 +121,20 @@ class Board:
             if self.is_valid_move(next_move):
                 break
         moves = [int(i) for i in next_move.split()]
-        cells = list(self.current_pos)
-        cells[find_position(moves)] = self.current_player
-        self.current_pos = "".join(cells)
+        self.current_pos[find_position(moves)] = self.current_player
         self.print_board()
 
     def make_move(self):
         if self.current_player == "X":
-            self.player_x()
+            if self.player_x == "user":
+                self.user_move()
+            else:
+                self.auto_move(self.player_x)
         else:
-            self.player_o()
+            if self.player_o == "user":
+                self.user_move()
+            else:
+                self.auto_move(self.player_o)
         self.current_player = "X" if self.current_player == "O" else "O"
 
 
@@ -112,6 +143,7 @@ def start(x_player, o_player):
     while new_game.game_result() == "Game not finished":
         new_game.make_move()
     print(new_game.game_result())
+    print()
 
 
 while True:
@@ -121,7 +153,7 @@ while True:
     elif (
         commands[0] == "start"
         and len(commands) == 3
-        and set(commands[1:]).issubset({"user", "easy"})
+        and set(commands[1:]).issubset({"user", "easy", "medium"})
     ):
         start(*commands[1:])
     else:
