@@ -5,7 +5,7 @@ def find_position(coordinate):
     return 3 * (coordinate[0] - 1) + coordinate[1] - 1
 
 
-class Board:
+class BaseBoard:
     # A list of possible winning cases
     winning_cases = (
         (0, 1, 2),
@@ -18,12 +18,16 @@ class Board:
         (3, 4, 5),
     )
 
-    def __init__(self, player_x, player_o):
-        self.current_pos = ["_"] * 9
-        self.current_player = "X"
-        self.player_x = player_x
-        self.player_o = player_o
-        self.print_board()
+    def __init__(self, board: str = None):
+        if board:
+            self.current_pos = list(board)
+        else:
+            self.current_pos = ["_"] * 9
+        # Assume X always go first on a clean board
+        self.current_player = (
+            "X" if self.current_pos.count("X") == self.current_pos.count("O") else "O"
+        )
+        self.opponent = "O" if self.current_player == "X" else "X"
 
     def print_board(self):
         print("---------")
@@ -49,13 +53,22 @@ class Board:
             # or abs(count_x - count_o) > 1:
             return "Impossible"
         elif "OOO" in winning_pos:
-            return "O wins"
+            return "O"
         elif "XXX" in winning_pos:
-            return "X wins"
+            return "X"
         elif empty_cell:
             return "Game not finished"
         else:
             return "Draw"
+
+    def __repr__(self):
+        return "".join(self.current_pos)
+
+    def __str__(self):
+        result = self.game_result()
+        if result in ["X", "O"]:
+            result = result + " wins"
+        return result
 
     def is_valid_move(self, move):
         coordinate = move.split()
@@ -72,9 +85,26 @@ class Board:
             return False
         return True
 
-    def random_move(self):
+    def empty_cells(self):
         empty_cells = [i for i, cell in enumerate(self.current_pos) if cell == "_"]
-        move = random.choice(empty_cells)
+        return empty_cells
+
+
+class Board(BaseBoard):
+    # A list of possible winning cases
+
+    def __init__(self, player_x, player_o, board=None):
+        super().__init__(board)
+        self.player_x = (
+            self.user_move if player_x == "user" else self.auto_move(player_x)
+        )
+        self.player_o = (
+            self.user_move if player_o == "user" else self.auto_move(player_o)
+        )
+        self.print_board()
+
+    def random_move(self):
+        move = random.choice(self.empty_cells())
         self.current_pos[move] = self.current_player
 
     def winning_move(self):
@@ -104,16 +134,18 @@ class Board:
 
     def auto_move(self, difficulty):
         level = difficulty.strip().lower()
-        if level == "easy":
-            print('Making move level "easy"')
-            self.random_move()
-        elif level == "medium":
-            print('Making move level "medium"')
-            if not self.winning_move():
-                if not self.blocking_move():
-                    self.random_move()
 
-        self.print_board()
+        def ai_move():
+            if level == "easy":
+                print('Making move level "easy"')
+                self.random_move()
+            elif level == "medium":
+                print('Making move level "medium"')
+                if not self.winning_move():
+                    if not self.blocking_move():
+                        self.random_move()
+
+        return ai_move
 
     def user_move(self):
         while True:
@@ -122,39 +154,34 @@ class Board:
                 break
         moves = [int(i) for i in next_move.split()]
         self.current_pos[find_position(moves)] = self.current_player
-        self.print_board()
 
     def make_move(self):
         if self.current_player == "X":
-            if self.player_x == "user":
-                self.user_move()
-            else:
-                self.auto_move(self.player_x)
+            self.player_x()
         else:
-            if self.player_o == "user":
-                self.user_move()
-            else:
-                self.auto_move(self.player_o)
-        self.current_player = "X" if self.current_player == "O" else "O"
+            self.player_o()
+        self.current_player, self.opponent = self.opponent, self.current_player
+        self.print_board()
 
 
 def start(x_player, o_player):
     new_game = Board(x_player, o_player)
     while new_game.game_result() == "Game not finished":
         new_game.make_move()
-    print(new_game.game_result())
+    print(new_game)
     print()
 
 
-while True:
-    commands = input("Input command: ").split()
-    if commands[0] == "exit" and len(commands) == 1:
-        break
-    elif (
-        commands[0] == "start"
-        and len(commands) == 3
-        and set(commands[1:]).issubset({"user", "easy", "medium"})
-    ):
-        start(*commands[1:])
-    else:
-        print("Bad parameters!")
+if __name__ == "__main__":
+    while True:
+        commands = input("Input command: ").split()
+        if commands[0] == "exit" and len(commands) == 1:
+            break
+        elif (
+            commands[0] == "start"
+            and len(commands) == 3
+            and set(commands[1:]).issubset({"user", "easy", "medium"})
+        ):
+            start(*commands[1:])
+        else:
+            print("Bad parameters!")
