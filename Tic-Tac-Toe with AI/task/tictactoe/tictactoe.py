@@ -90,6 +90,10 @@ class BaseBoard:
         return empty_cells
 
 
+def string_replacer(origin_str: str, location: int, replace_with: str):
+    return origin_str[:location] + replace_with + origin_str[location + 1 :]
+
+
 class Board(BaseBoard):
     # A list of possible winning cases
 
@@ -132,7 +136,34 @@ class Board(BaseBoard):
                 return True
         return False
 
-    def auto_move(self, difficulty):
+    @staticmethod
+    def minimax(current_game: BaseBoard, maximized: bool):
+        offset = 1 if maximized else -1
+
+        if current_game.game_result() == "Draw":
+            return None, 0
+        if current_game.game_result() == current_game.current_player:
+            return None, 10 * offset
+        if current_game.game_result() == current_game.opponent:
+            return None, -10 * offset
+
+        best_move = None
+        best_score = -100 * offset
+        for spot in current_game.empty_cells():
+            moved = string_replacer(
+                repr(current_game), spot, current_game.current_player
+            )
+            score = Board.minimax(BaseBoard(moved), not maximized)[1]
+            if score == 10 * offset:
+                return spot, score
+            if (score > best_score and maximized) or (
+                not maximized and score < best_score
+            ):
+                best_score = score
+                best_move = spot
+        return best_move, best_score
+
+    def auto_move(self, difficulty: str):
         level = difficulty.strip().lower()
 
         def ai_move():
@@ -144,6 +175,10 @@ class Board(BaseBoard):
                 if not self.winning_move():
                     if not self.blocking_move():
                         self.random_move()
+            elif level == "hard":
+                print('Making move level "hard"')
+                move = Board.minimax(BaseBoard(self.current_pos), True)[0]
+                self.current_pos[move] = self.current_player
 
         return ai_move
 
@@ -180,7 +215,7 @@ if __name__ == "__main__":
         elif (
             commands[0] == "start"
             and len(commands) == 3
-            and set(commands[1:]).issubset({"user", "easy", "medium"})
+            and set(commands[1:]).issubset({"user", "easy", "medium", "hard"})
         ):
             start(*commands[1:])
         else:
